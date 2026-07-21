@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mission Control">
+<meta name="theme-color" content="#070b12">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%23070b12'/%3E%3Ccircle cx='90' cy='90' r='46' fill='none' stroke='%234fd8eb' stroke-width='7'/%3E%3Ccircle cx='90' cy='90' r='22' fill='%234fd8eb'/%3E%3Ccircle cx='90' cy='90' r='64' fill='none' stroke='%232a8fa1' stroke-width='3' opacity='.6'/%3E%3C/svg%3E">
+<title>Mission Control — Meyers</title>
+<style>
+  :root{
+    --bg:#070b12; --panel:#0c131f; --panel2:#0e1726; --line:#1b2a40;
+    --cyan:#4fd8eb; --cyan-dim:#2a8fa1; --text:#c9d6e3; --muted:#6f8299;
+    --amber:#ffb454; --red:#ff6b6b; --green:#5ad8a6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{
+    background:
+      radial-gradient(1200px 600px at 70% -10%, rgba(79,216,235,.07), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh; padding:20px 22px calc(20px + env(safe-area-inset-bottom));
+  }
+  .mono{font-family:"SF Mono",SFMono-Regular,ui-monospace,Menlo,Consolas,monospace}
+
+  /* header */
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    gap:10px;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:14px}
+  .hleft{display:flex;align-items:center;gap:12px}
+  .reactor{width:34px;height:34px;flex:none;position:relative}
+  .reactor svg{width:100%;height:100%;animation:spin 14s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .reactor::after{content:"";position:absolute;inset:9px;border-radius:50%;
+    background:var(--cyan);box-shadow:0 0 14px var(--cyan);animation:pulse 2.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.75}50%{opacity:1}}
+  h1{font-size:17px;letter-spacing:.2em;color:#eaf5fa;font-weight:600;white-space:nowrap}
+  h1 .slash{color:var(--cyan)}
+  .stamp{font-size:11.5px;color:var(--muted);letter-spacing:.08em;text-align:right;line-height:1.6}
+  .stamp b{color:var(--cyan);font-weight:600}
+
+  /* greeting */
+  #greet{min-height:22px;font-size:14px;color:var(--cyan);letter-spacing:.04em;margin-bottom:14px}
+  #greet .caret{display:inline-block;width:8px;height:15px;background:var(--cyan);
+    vertical-align:-2px;margin-left:2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* tabs */
+  nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  nav button{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    padding:8px 14px;border-radius:20px;font-size:11px;letter-spacing:.18em;cursor:pointer;
+    text-transform:uppercase;transition:all .2s}
+  nav button.on{color:var(--cyan);border-color:var(--cyan-dim);
+    box-shadow:0 0 12px rgba(79,216,235,.15), inset 0 0 8px rgba(79,216,235,.06)}
+  nav button:active{transform:scale(.96)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+  .card{background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line);border-radius:10px;padding:15px 17px;
+    box-shadow:0 0 0 1px rgba(79,216,235,.03), 0 8px 24px rgba(0,0,0,.35);
+    animation:rise .35s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .card h2{font-size:11px;letter-spacing:.26em;color:var(--cyan);font-weight:600;
+    text-transform:uppercase;margin-bottom:11px;display:flex;align-items:center;gap:8px}
+  .card h2::before{content:"";width:7px;height:7px;border-radius:50%;flex:none;
+    background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+  ul{list-style:none}
+  li{padding:8px 0;border-bottom:1px dashed rgba(27,42,64,.8);font-size:13.5px;line-height:1.5}
+  li:last-child{border-bottom:none}
+  .k{color:var(--muted);font-size:11px;letter-spacing:.12em;text-transform:uppercase;margin-right:8px}
+  .tag{display:inline-block;font-size:10px;letter-spacing:.14em;padding:2px 8px;
+    border-radius:20px;border:1px solid;margin-right:8px;vertical-align:1px}
+  .tag.alert{color:var(--red);border-color:rgba(255,107,107,.5)}
+  .tag.warn{color:var(--amber);border-color:rgba(255,180,84,.5)}
+  .tag.ok{color:var(--green);border-color:rgba(90,216,166,.45)}
+  .tag.info{color:var(--cyan);border-color:rgba(79,216,235,.45)}
+  .muted{color:var(--muted)}
+  .empty{color:var(--muted);font-style:italic;font-size:13px;padding:6px 0}
+  a{color:var(--cyan);text-decoration:none}
+
+  /* interactive tasks */
+  .task{display:flex;align-items:flex-start;gap:10px;cursor:pointer;user-select:none}
+  .box{width:17px;height:17px;flex:none;margin-top:1px;border:1.5px solid var(--cyan-dim);
+    border-radius:4px;position:relative;transition:all .2s}
+  .task.done .box{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px rgba(79,216,235,.5)}
+  .task.done .box::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;color:#04222a;font-size:11px;font-weight:700}
+  .task.done .tx{color:var(--muted);text-decoration:line-through}
+  .flag{position:relative;padding-right:30px}
+  .dismiss{position:absolute;right:0;top:8px;width:22px;height:22px;border:1px solid var(--line);
+    border-radius:50%;background:none;color:var(--muted);font-size:11px;cursor:pointer;line-height:1}
+  .dismiss:hover{color:var(--red);border-color:var(--red)}
+  .note{font-size:11px;color:var(--muted);margin-top:10px;font-style:italic}
+
+  .sys{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .sys .st{font-size:10.5px;letter-spacing:.18em;color:var(--green);white-space:nowrap}
+  .sys .st.pending{color:var(--amber)}
+  .sys .st.hold{color:var(--red)}
+
+  /* bujo copy */
+  pre{background:#081019;border:1px solid var(--line);border-radius:8px;padding:12px;
+    font-size:12.5px;line-height:1.7;color:var(--text);overflow-x:auto;white-space:pre-wrap}
+  .btn{display:inline-block;margin-top:10px;background:none;border:1px solid var(--cyan-dim);
+    color:var(--cyan);padding:8px 16px;border-radius:20px;font-size:11px;letter-spacing:.18em;
+    cursor:pointer;text-transform:uppercase;transition:all .2s}
+  .btn:active{transform:scale(.96)}
+  .btn.flash{background:var(--cyan);color:#04222a;box-shadow:0 0 14px rgba(79,216,235,.6)}
+
+  footer{margin-top:20px;border-top:1px solid var(--line);padding-top:12px;
+    font-size:11px;color:var(--muted);letter-spacing:.06em;display:flex;
+    justify-content:space-between;flex-wrap:wrap;gap:6px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hleft">
+    <div class="reactor">
+      <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="#2a8fa1" stroke-width="2" stroke-dasharray="8 5" opacity=".8"/><circle cx="20" cy="20" r="12" fill="none" stroke="#4fd8eb" stroke-width="1.5" opacity=".5"/></svg>
+    </div>
+    <h1>MEYERS <span class="slash">//</span> MISSION CONTROL</h1>
+  </div>
+  <div class="stamp mono">
+    <span id="clock">——:——:——</span> ET · <span id="dateline"></span><br>
+    DATA AS OF <b>WED JUL 15 2026 · EVENING</b>
+  </div>
+</header>
+
+<div id="greet"><span id="greettext"></span><span class="caret"></span></div>
+
+<nav>
+  <button class="on" data-tab="all">All</button>
+  <button data-tab="today">Today</button>
+  <button data-tab="tasks">Tasks</button>
+  <button data-tab="house">House</button>
+  <button data-tab="bujo">BuJo</button>
+  <button data-tab="systems">Systems</button>
+</nav>
+
+<div class="grid">
+
+  <div class="card" data-sec="today">
+    <h2>Today's Schedule</h2>
+    <div class="empty">Calendar clear today and tomorrow. Enjoy the quiet, sir.</div>
+  </div>
+
+  <div class="card" data-sec="today">
+    <h2>Priority Flags</h2>
+    <ul id="flags">
+      <li class="flag"><span class="tag warn">BILL</span>Sawnee EMC electric bill ready for review (Jul 15, 4:40 PM)<button class="dismiss" title="Dismiss">✕</button></li>
+      <li class="flag"><span class="tag alert">PHISHING</span>"Payment Processed #082245" from <span class="mono">blackriothk.com</span> — do not click; delete at the Outlook source<button class="dismiss" title="Dismiss">✕</button></li>
+      <li class="flag"><span class="tag info">NETLIFY</span>New deploys blocked by their stale credit-flag bug — consolidation on hold<button class="dismiss" title="Dismiss">✕</button></li>
+    </ul>
+    <div class="note">Dismissing a flag tidies this view only — Higgins re-evaluates at the next brief.</div>
+  </div>
+
+  <div class="card" data-sec="tasks">
+    <h2>Tasks — Active</h2>
+    <ul id="tasks">
+      <li class="task"><span class="box"></span><span class="tx">Review Sawnee EMC bill <span class="muted">(new Jul 15)</span></span></li>
+      <li class="task"><span class="box"></span><span class="tx">Verify BuJo import format <span class="muted">(try bujo/imports/2026-07-15.txt)</span></span></li>
+      <li class="task"><span class="box"></span><span class="tx">Fill in house details <span class="muted">(house/HOUSE.md)</span></span></li>
+      <li class="task"><span class="box"></span><span class="tx">Export first BuJo backup <span class="muted">(JSON → bujo/backups/)</span></span></li>
+    </ul>
+    <div class="note">Ticks here are for the satisfaction, sir — tell Higgins "done with X" to make them official.</div>
+  </div>
+
+  <div class="card" data-sec="house">
+    <h2>House Status</h2>
+    <ul>
+      <li><span class="k">Electric</span>Sawnee EMC — new bill pending review</li>
+      <li><span class="k">Maintenance</span><span class="muted">Schedule not yet initialized — add "Next due" dates to HOUSE.md and they'll appear here</span></li>
+    </ul>
+  </div>
+
+  <div class="card" data-sec="bujo">
+    <h2>BuJo</h2>
+    <ul>
+      <li><span class="k">App</span><a href="https://meyers-bujo.netlify.app">meyers-bujo.netlify.app</a></li>
+      <li><span class="k">Status</span><span class="tag ok">RESTORED</span>back online after this evening's unpleasantness</li>
+      <li><span class="k">Backup</span><span class="tag warn">NONE</span><span class="muted">no JSON backup on file yet — export one this week</span></li>
+    </ul>
+  </div>
+
+  <div class="card" data-sec="bujo">
+    <h2>Today's BuJo Import</h2>
+    <pre id="bujoimport">2026-07-15
+• Review Sawnee EMC bill (e-bill notice arrived today)
+• Export a BuJo JSON backup to Documents/Assistant/bujo/backups
+— Personal assistant system set up today: briefs start tomorrow 7am</pre>
+    <button class="btn" id="copybtn">Copy to clipboard</button>
+  </div>
+
+  <div class="card" data-sec="systems">
+    <h2>Systems</h2>
+    <ul>
+      <li class="sys"><span>Morning Brief — daily 07:00 ET</span><span class="st mono">ARMED</span></li>
+      <li class="sys"><span>Evening Debrief — daily 21:00 ET</span><span class="st mono">ARMED</span></li>
+      <li class="sys"><span>Weekly Review — Sun 19:00 ET</span><span class="st mono">ARMED</span></li>
+      <li class="sys"><span>Gmail · Calendar · Mac bridge</span><span class="st mono">ONLINE</span></li>
+      <li class="sys"><span>Netlify deploys</span><span class="st hold mono">BLOCKED</span></li>
+      <li class="sys"><span>Finances / net worth module</span><span class="st pending mono">STANDBY</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<footer>
+  <span>HOME BASE: Documents/Assistant · Mac mini</span>
+  <span>Refreshed by each scheduled run · HIGGINS protocol v2</span>
+</footer>
+
+<script>
+(function(){
+  // live ET clock
+  var clock=document.getElementById('clock'), dateline=document.getElementById('dateline');
+  function tick(){
+    var now=new Date();
+    clock.textContent=now.toLocaleTimeString('en-US',{hour12:false,timeZone:'America/New_York'});
+    dateline.textContent=now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'America/New_York'}).toUpperCase();
+  }
+  tick(); setInterval(tick,1000);
+
+  // typed greeting from Higgins, by time of day
+  var h=parseInt(new Date().toLocaleString('en-US',{hour:'2-digit',hour12:false,timeZone:'America/New_York'}),10);
+  var part = h<5 ? 'Burning the midnight oil, are we, sir?' :
+             h<12 ? 'Good morning, sir. The day awaits your instructions.' :
+             h<18 ? 'Good afternoon, sir. Matters are well in hand.' :
+                    'Good evening, sir. Shall we review the day?';
+  var gt=document.getElementById('greettext'), i=0;
+  (function type(){ if(i<=part.length){ gt.textContent=part.slice(0,i++); setTimeout(type,28);} })();
+
+  // tabs
+  var btns=document.querySelectorAll('nav button'), cards=document.querySelectorAll('.card');
+  btns.forEach(function(b){ b.addEventListener('click',function(){
+    btns.forEach(function(x){x.classList.remove('on')}); b.classList.add('on');
+    var t=b.dataset.tab;
+    cards.forEach(function(c){ c.classList.toggle('hidden', t!=='all' && c.dataset.sec!==t); });
+  });});
+
+  // task ticks (in-memory only)
+  document.querySelectorAll('.task').forEach(function(t){
+    t.addEventListener('click',function(){ t.classList.toggle('done'); });
+  });
+
+  // dismissible flags
+  document.querySelectorAll('.dismiss').forEach(function(d){
+    d.addEventListener('click',function(e){ e.stopPropagation();
+      var li=d.closest('li'); li.style.opacity='0'; li.style.transition='opacity .25s';
+      setTimeout(function(){ li.remove();
+        if(!document.querySelectorAll('#flags li').length){
+          document.getElementById('flags').innerHTML='<li class="empty">All clear. As it should be.</li>';
+        }
+      },250);
+    });
+  });
+
+  // copy BuJo import
+  var btn=document.getElementById('copybtn');
+  btn.addEventListener('click',function(){
+    var txt=document.getElementById('bujoimport').textContent;
+    function ok(){ btn.classList.add('flash'); btn.textContent='Copied, sir.';
+      setTimeout(function(){btn.classList.remove('flash');btn.textContent='Copy to clipboard';},1800); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok,fallback); }
+    else fallback();
+    function fallback(){ var ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta);
+      ta.select(); try{document.execCommand('copy');ok();}catch(e){} document.body.removeChild(ta); }
+  });
+})();
+</script>
+</body>
+</html>
