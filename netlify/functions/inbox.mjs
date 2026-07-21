@@ -1,34 +1,35 @@
 import { getStore } from "@netlify/blobs";
 
 // The "locker": a Netlify Function backed by Netlify Blobs.
-//   GET  /api/inbox                         -> returns the current inbox as an
-//                                              array of {_merge,date,items} packets
-//   GET  /api/inbox?push=SECRET&text=...    -> appends one item (Higgins uses this)
-//   GET  /api/inbox?clear=SECRET            -> empties the inbox
+//   GET  /api/inbox                        -> current inbox as an array of
+//                                             {_merge,date,items} packets (app reads on open)
+//   GET  /api/inbox?push=SECRET&text=...   -> add one item (Higgins uses this)
+//   GET  /api/inbox?clear=SECRET           -> empty the inbox
 //
-// Higgins writes with a plain GET (its only outbound channel is a URL fetch),
-// so items ride in the query string to Paul's own endpoint. Low-sensitivity
-// task text only. The push secret gates all writes.
+// Each item is stored under its OWN blob key ("item:<id>") so concurrent or
+// rapid writes never clobber one another (Netlify Blobs is eventually
+// consistent, so a read-modify-write on a single key loses data). Reads list
+// the keys and assemble the packets.
 
 const SECRET = process.env.BUJO_PUSH_SECRET || "";
 const STORE = "bujo-inbox";
-const KEY = "items";
+const PREFIX = "item:";
 const MAX_AGE_DAYS = 21;
 
 export default async (req) => {
   const url = new URL(req.url);
   const store = getStore(STORE);
-
   const push = url.searchParams.get("push");
   const clear = url.searchParams.get("clear");
 
-  // ---- WRITE: append one item ----
+  // ---- WRITE one item (own key => race-free) ----
   if (push !== null) {
     if (!SECRET || push !== SECRET) return json({ error: "unauthorized" }, 401);
     const text = (url.searchParams.get("text") || "").trim();
     if (!text) return json({ error: "missing text" }, 400);
+    const id = url.searchParams.get("id") || (Date.now() + "-" + Math.round(Math.random() * 1e6));
     const item = {
-      id: url.searchParams.get("id") || (Date.now() + "-" + Math.round(Math.random() * 1e6)),
+      id,
       text,
       type: url.searchParams.get("type") || "task",
       star: url.searchParams.get("star") === "1",
@@ -40,26 +41,37 @@ export default async (req) => {
       const dur = parseInt(url.searchParams.get("dur") || "", 10);
       if (!isNaN(dur)) item.dur = dur;
     }
-    let items = (await store.get(KEY, { type: "json" })) || [];
-    if (!items.some((x) => x.id === item.id)) items.push(item);
-    items = prune(items);
-    await store.setJSON(KEY, items);
-    return json({ ok: true, added: item.id, count: items.length });
+    await store.setJSON(PREFIX + id, item);
+    return json({ ok: true, added: id });
   }
 
   // ---- CLEAR ----
   if (clear !== null) {
     if (!SECRET || clear !== SECRET) return json({ error: "unauthorized" }, 401);
-    await store.setJSON(KEY, []);
-    return json({ ok: true, cleared: true });
+    const { blobs } = await store.list({ prefix: PREFIX });
+    await Promise.all(blobs.map((b) => store.delete(b.key)));
+    return json({ ok: true, cleared: blobs.length });
   }
 
-  // ---- READ: group items by date into packets the BuJo loader understands ----
-  let items = (await store.get(KEY, { type: "json" })) || [];
-  items = prune(items);
+  // ---- READ: gather all items, prune, group by date ----
+  const { blobs } = await store.list({ prefix: PREFIX });
+  const items = [];
+  await Promise.all(
+    blobs.map(async (b) => {
+      const it = await store.get(b.key, { type: "json" });
+      if (it) items.push(it);
+    })
+  );
+  const cutoff = Date.now() - 86400000 * MAX_AGE_DAYS;
+  const fresh = items.filter((it) => {
+    const t = Date.parse((it.date || "") + "T00:00:00Z");
+    return isNaN(t) || t >= cutoff;
+  });
   const byDate = {};
-  for (const it of items) (byDate[it.date] = byDate[it.date] || []).push(it);
-  const packets = Object.keys(byDate).sort().map((d) => ({ _merge: true, date: d, items: byDate[d] }));
+  for (const it of fresh) (byDate[it.date] = byDate[it.date] || []).push(it);
+  const packets = Object.keys(byDate)
+    .sort()
+    .map((d) => ({ _merge: true, date: d, items: byDate[d] }));
   return json(packets);
 };
 
@@ -75,13 +87,6 @@ function json(obj, status = 200) {
 }
 function todayK() {
   return new Date().toISOString().slice(0, 10);
-}
-function prune(items) {
-  const cutoff = Date.now() - 86400000 * MAX_AGE_DAYS;
-  return items.filter((it) => {
-    const t = Date.parse((it.date || "") + "T00:00:00Z");
-    return isNaN(t) || t >= cutoff;
-  });
 }
 
 export const config = { path: "/api/inbox" };
