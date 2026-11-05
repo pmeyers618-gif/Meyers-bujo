@@ -184,6 +184,18 @@
   .schfill small{display:block;font-size:10px;color:var(--ink-soft);margin-top:1px;}
   .schfill.cont{color:var(--block-line);text-align:center;font-size:13px;padding-top:9px;}
   .schfill.done{text-decoration:line-through;color:var(--done);}
+  /* color-coded schedule blocks */
+  td.schslot.filled.cat-ease{background:#E3EFE0;box-shadow:inset 4px 0 0 #6FA287;}
+  td.schslot.filled.cat-read{background:#DCEDEA;box-shadow:inset 4px 0 0 #4F9A98;}
+  td.schslot.filled.cat-deep{background:#F6E7C4;box-shadow:inset 4px 0 0 #C99A2E;}
+  td.schslot.filled.cat-email{background:#E4E7EC;box-shadow:inset 4px 0 0 #8893A6;}
+  td.schslot.filled.cat-train{background:#F8DDC9;box-shadow:inset 4px 0 0 #D98A4E;}
+  td.schslot.filled.cat-break{background:#ECE8E0;box-shadow:inset 4px 0 0 #B8AE9C;}
+  td.schslot.filled.cat-focus{background:#DCE6F3;box-shadow:inset 4px 0 0 #5E82C0;}
+  td.schslot.filled.cat-errand{background:#EDE1CF;box-shadow:inset 4px 0 0 #B08A4E;}
+  td.schslot.filled.cat-review{background:#E7DEF0;box-shadow:inset 4px 0 0 #8B6FB8;}
+  td.schslot.filled.cat-family{background:#F6DEE8;box-shadow:inset 4px 0 0 #C96F9A;}
+  td.schslot.filled.cat-event{background:#D9E7F2;box-shadow:inset 4px 0 0 #5E9AC0;}
   .tbcompleted .tbhead{color:var(--ink-soft);font-size:16px;}
   .tbcompleted .tbcheck{background:var(--accent-2);border-color:var(--accent-2);color:#fff;}
   .tbquote{text-align:center;font-style:italic;color:var(--ink-soft);font-size:14px;padding:14px 10px 24px;}
@@ -346,6 +358,18 @@
   function monthArr(d){var k=mKey(d);if(!DB.months[k])DB.months[k]=[];return DB.months[k];}
   function futureArr(k){if(!DB.future[k])DB.future[k]=[];return DB.future[k];}
   function tbArr(d){var k=dKey(d);if(!DB.timebox[k])DB.timebox[k]=[];return DB.timebox[k];}
+  function schCat(t){t=(t||'').toLowerCase();
+    if(/ease-in|brief|timebox/.test(t))return 'ease';
+    if(/wind-down|wind down|read/.test(t))return 'read';
+    if(/deep work/.test(t))return 'deep';
+    if(/email/.test(t))return 'email';
+    if(/train|gym|zwift|workout|\bmove\b|\brun\b|\bride\b/.test(t))return 'train';
+    if(/lunch|dinner|breakfast|\bbreak\b/.test(t))return 'break';
+    if(/review/.test(t))return 'review';
+    if(/errand|house|admin|chore|clean/.test(t))return 'errand';
+    if(/focus|project|call|meeting/.test(t))return 'focus';
+    if(/mackenzie|pick ?up|family|club|school/.test(t))return 'family';
+    return 'event';}
 
   function entryEl(item,arr,idx,onChange){
     var li=document.createElement("li");
@@ -868,7 +892,7 @@
         if(dKey(d)===TODAY_K){var _n=new Date();var _cm=_n.getHours()*60+_n.getMinutes();if(_cm>=mins&&_cm<mins+30)td.className+=" nowslot";}
         var c=cov[mins];
         if(c){
-          td.className+=" filled";
+          td.className+=" filled cat-"+schCat(c.item.text);
           var div=document.createElement("div");div.className="schfill"+(c.isStart?"":" cont")+(isDone(c.item)?" done":"");
           if(c.isStart){ div.innerHTML=esc(c.item.text)+'<small>'+timeLabel(c.item.time)+'–'+timeLabel(c.item.time+(c.item.dur||30))+'</small>'; }
           else { div.textContent="⋯"; }
